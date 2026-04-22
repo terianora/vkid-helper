@@ -2,10 +2,14 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="refresh" content="0; url=./vk_id_token_helper.html">
   <title>VK ID Helper Redirect</title>
 </head>
 <body>
-  <p>Если редирект не сработал, откройте <a href="./vk_id_token_helper.html">vk_id_token_helper.html</a>.</p>
+  <p>Переадресация в helper… Если она не сработала, откройте <a id="helperLink" href="./vk_id_token_helper.html">vk_id_token_helper.html</a>.</p>
+  <script>
+    const target = `./vk_id_token_helper.html${location.search}${location.hash}`;
+    document.getElementById('helperLink').href = target;
+    location.replace(target);
+  </script>
 </body>
 </html>
