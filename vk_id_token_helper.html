@@ -172,7 +172,7 @@
   <div class="wrap">
     <section class="hero">
       <h1>VK ID Token Helper</h1>
-      <p>Эта страница нужна только для первого логина. Она запускает VK ID flow, получает <code>code</code> и <code>device_id</code>, обменивает их на токены и собирает готовый блок <code>vk_auth</code> для вашего автопостера.</p>
+      <p>Эта страница нужна только для первого логина. Она запускает VK ID flow, получает <code>authorization_code</code> и <code>device_id</code> и собирает готовый блок <code>vk_auth</code> для серверного обмена токенов вашим локальным Python-скриптом.</p>
       <p class="small">Важно: в настройках приложения VK ID должен быть добавлен redirect URL, который вы укажете ниже. Для локального запуска удобно использовать <code>http://127.0.0.1:8765/vk_id_token_helper.html</code>.</p>
     </section>
 
@@ -202,7 +202,7 @@
 
       <div class="card">
         <h2>2. Результат</h2>
-        <p class="small">После успешной авторизации сюда появится готовый JSON-блок для вставки в <code>config.json</code>.</p>
+      <p class="small">После успешной авторизации сюда появится готовый JSON-блок для вставки в <code>config.json</code>. Сам обмен <code>authorization_code</code> на токены будет делать локальный Python-скрипт.</p>
         <textarea id="resultJson" spellcheck="false" placeholder="Готовый блок vk_auth появится здесь"></textarea>
         <div class="actions">
           <button id="copyBtn" type="button">Скопировать JSON</button>
@@ -214,7 +214,7 @@
       <h2>3. Что дальше</h2>
       <p>1. Скопируйте блок <code>vk_auth</code> в ваш <code>config.json</code>.</p>
       <p>2. Уберите старые значения из <code>access_token</code>, <code>photo_access_token</code> и <code>wall_access_token</code>, либо оставьте их пустыми.</p>
-      <p>3. После первого успешного запуска скрипт сам будет обновлять <code>access_token</code> по <code>refresh_token</code>.</p>
+      <p>3. Потом запустите локальный обмен кода на токены. После первого успешного обмена основной скрипт сам будет обновлять <code>access_token</code> по <code>refresh_token</code>.</p>
     </section>
   </div>
 
@@ -308,18 +308,16 @@
       return out;
     }
 
-    function buildVkAuthSnippet(tokenResult) {
-      const nowTs = Math.floor(Date.now() / 1000);
-      const expiresAt = nowTs + Number(tokenResult.expires_in || 0);
+    function buildVkAuthSnippet(authCode, deviceId) {
       const payload = {
         vk_auth: {
           enabled: true,
           client_id: appIdEl.value.trim(),
-          device_id: tokenResult.device_id || '',
-          refresh_token: tokenResult.refresh_token || '',
-          access_token: tokenResult.access_token || '',
-          access_token_expires_at: expiresAt,
-          authorization_code: '',
+          device_id: deviceId || '',
+          refresh_token: '',
+          access_token: '',
+          access_token_expires_at: 0,
+          authorization_code: authCode || '',
           code_verifier: codeVerifierEl.value.trim(),
           redirect_uri: redirectUrlEl.value.trim(),
           token_endpoint: 'https://id.vk.ru/oauth2/auth'
@@ -401,16 +399,13 @@
       }
 
       try {
-        setStatus('Получены code и device_id. Обмениваю их на токены…', 'info');
-        const auth = await initSdk();
-        const tokenResult = await auth.exchangeCode(code, deviceId, codeVerifierEl.value.trim());
-        tokenResult.device_id = deviceId;
-        resultJsonEl.value = buildVkAuthSnippet(tokenResult);
-        saveSettings({ lastTokenResult: tokenResult });
+        await initSdk();
+        resultJsonEl.value = buildVkAuthSnippet(code, deviceId);
+        saveSettings({ lastAuthorizationCode: code, lastDeviceId: deviceId });
         clearCallbackFromAddressBar();
-        setStatus('Готово. Скопируйте JSON и вставьте его в config.json.', 'ok');
+        setStatus('Готово. Скопируйте JSON в config.json, затем запустите локальный обмен кода на токены.', 'ok');
       } catch (err) {
-        setStatus(`Не удалось обменять code на токены:\n${err.message || err}`, 'bad');
+        setStatus(`Получены code и device_id, но helper не смог собрать результат:\n${err.message || err}`, 'bad');
       }
     }
 
