@@ -229,6 +229,38 @@
     const codeVerifierEl = document.getElementById('codeVerifier');
     const sdk = window.VKIDSDK || window.VKID;
 
+    function resolveAuthApi() {
+      if (!sdk) {
+        throw new Error('Не удалось загрузить VK ID SDK из CDN.');
+      }
+
+      if (sdk.Auth && typeof sdk.Auth.login === 'function' && typeof sdk.Auth.exchangeCode === 'function') {
+        return sdk.Auth;
+      }
+
+      if (typeof sdk.Auth === 'function') {
+        const instance = new sdk.Auth();
+        if (instance && typeof instance.login === 'function' && typeof instance.exchangeCode === 'function') {
+          return instance;
+        }
+      }
+
+      if (sdk.default && sdk.default.Auth) {
+        const auth = sdk.default.Auth;
+        if (typeof auth.login === 'function' && typeof auth.exchangeCode === 'function') {
+          return auth;
+        }
+        if (typeof auth === 'function') {
+          const instance = new auth();
+          if (instance && typeof instance.login === 'function' && typeof instance.exchangeCode === 'function') {
+            return instance;
+          }
+        }
+      }
+
+      throw new Error('Не удалось найти рабочий Auth API в VK ID SDK.');
+    }
+
     function setStatus(message, kind = 'info') {
       statusEl.className = 'status ' + kind;
       statusEl.textContent = message;
@@ -326,9 +358,6 @@
       const scope = scopeEl.value.trim();
       const codeVerifier = codeVerifierEl.value.trim();
 
-      if (!sdk) {
-        throw new Error('Не удалось загрузить VK ID SDK из CDN.');
-      }
       if (!appId) {
         throw new Error('Нужен APP_ID / client_id.');
       }
@@ -348,7 +377,7 @@
       });
 
       saveSettings();
-      return new sdk.Auth();
+      return resolveAuthApi();
     }
 
     async function beginLogin() {
