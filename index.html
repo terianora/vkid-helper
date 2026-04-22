@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VK ID Token Helper</title>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --panel: #fffaf2;
+      --ink: #22201c;
+      --muted: #6d665d;
+      --line: #d8ccb9;
+      --accent: #1565c0;
+      --accent-2: #0d47a1;
+      --ok: #0b7a3d;
+      --warn: #8a5300;
+      --bad: #b3261e;
+      --code: #f1e8d8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(21, 101, 192, 0.08), transparent 36%),
+        radial-gradient(circle at bottom right, rgba(138, 83, 0, 0.08), transparent 32%),
+        var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    .wrap {
+      width: min(980px, calc(100% - 32px));
+      margin: 32px auto 48px;
+    }
+
+    .hero,
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 12px 32px rgba(34, 32, 28, 0.08);
+    }
+
+    .hero {
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    h1,
+    h2 {
+      margin: 0 0 12px;
+      line-height: 1.15;
+    }
+
+    p {
+      margin: 0 0 12px;
+      line-height: 1.5;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font: inherit;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    textarea {
+      min-height: 180px;
+      resize: vertical;
+      font-family: Consolas, "Courier New", monospace;
+      background: var(--code);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      font: inherit;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+
+    button:hover {
+      background: var(--accent-2);
+      transform: translateY(-1px);
+    }
+
+    button.secondary {
+      background: #ddd3c5;
+      color: var(--ink);
+    }
+
+    .status {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      white-space: pre-wrap;
+    }
+
+    .status.info {
+      background: rgba(21, 101, 192, 0.08);
+      color: var(--accent-2);
+    }
+
+    .status.ok {
+      background: rgba(11, 122, 61, 0.1);
+      color: var(--ok);
+    }
+
+    .status.warn {
+      background: rgba(138, 83, 0, 0.1);
+      color: var(--warn);
+    }
+
+    .status.bad {
+      background: rgba(179, 38, 30, 0.12);
+      color: var(--bad);
+    }
+
+    .small {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    code {
+      background: rgba(34, 32, 28, 0.07);
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-family: Consolas, "Courier New", monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>VK ID Token Helper</h1>
+      <p>Эта страница нужна только для первого логина. Она запускает VK ID flow, получает <code>code</code> и <code>device_id</code>, обменивает их на токены и собирает готовый блок <code>vk_auth</code> для вашего автопостера.</p>
+      <p class="small">Важно: в настройках приложения VK ID должен быть добавлен redirect URL, который вы укажете ниже. Для локального запуска удобно использовать <code>http://127.0.0.1:8765/vk_id_token_helper.html</code>.</p>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h2>1. Настройки</h2>
+        <label for="appId">APP_ID / client_id</label>
+        <input id="appId" placeholder="Например 54554321">
+
+        <label for="redirectUrl" style="margin-top: 12px;">Redirect URL</label>
+        <input id="redirectUrl" placeholder="http://127.0.0.1:8765/vk_id_token_helper.html">
+
+        <label for="scope" style="margin-top: 12px;">Scope</label>
+        <input id="scope" value="wall,photos,groups,offline">
+
+        <label for="codeVerifier" style="margin-top: 12px;">code_verifier</label>
+        <input id="codeVerifier" placeholder="Сгенерируется автоматически">
+
+        <div class="actions">
+          <button id="generateBtn" class="secondary" type="button">Сгенерировать PKCE</button>
+          <button id="loginBtn" type="button">Войти через VK ID</button>
+          <button id="clearBtn" class="secondary" type="button">Сбросить сохранённое</button>
+        </div>
+
+        <div id="status" class="status info">Заполните APP_ID и redirect URL, затем нажмите «Войти через VK ID».</div>
+      </div>
+
+      <div class="card">
+        <h2>2. Результат</h2>
+        <p class="small">После успешной авторизации сюда появится готовый JSON-блок для вставки в <code>config.json</code>.</p>
+        <textarea id="resultJson" spellcheck="false" placeholder="Готовый блок vk_auth появится здесь"></textarea>
+        <div class="actions">
+          <button id="copyBtn" type="button">Скопировать JSON</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>3. Что дальше</h2>
+      <p>1. Скопируйте блок <code>vk_auth</code> в ваш <code>config.json</code>.</p>
+      <p>2. Уберите старые значения из <code>access_token</code>, <code>photo_access_token</code> и <code>wall_access_token</code>, либо оставьте их пустыми.</p>
+      <p>3. После первого успешного запуска скрипт сам будет обновлять <code>access_token</code> по <code>refresh_token</code>.</p>
+    </section>
+  </div>
+
+  <script src="https://unpkg.com/@vkid/sdk@2/dist-sdk/umd/index.js"></script>
+  <script>
+    const STORAGE_KEY = 'vk-autoposter-vk-id-helper';
+    const statusEl = document.getElementById('status');
+    const resultJsonEl = document.getElementById('resultJson');
+    const appIdEl = document.getElementById('appId');
+    const redirectUrlEl = document.getElementById('redirectUrl');
+    const scopeEl = document.getElementById('scope');
+    const codeVerifierEl = document.getElementById('codeVerifier');
+    const sdk = window.VKIDSDK || window.VKID;
+
+    function setStatus(message, kind = 'info') {
+      statusEl.className = 'status ' + kind;
+      statusEl.textContent = message;
+    }
+
+    function loadSettings() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      } catch (err) {
+        return {};
+      }
+    }
+
+    function saveSettings(extra = {}) {
+      const current = {
+        appId: appIdEl.value.trim(),
+        redirectUrl: redirectUrlEl.value.trim(),
+        scope: scopeEl.value.trim(),
+        codeVerifier: codeVerifierEl.value.trim(),
+        ...extra
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
+      return current;
+    }
+
+    function fillFromStorage() {
+      const saved = loadSettings();
+      appIdEl.value = saved.appId || '';
+      redirectUrlEl.value = saved.redirectUrl || `${location.origin || 'http://127.0.0.1:8765'}${location.pathname}`;
+      scopeEl.value = saved.scope || 'wall,photos,groups,offline';
+      codeVerifierEl.value = saved.codeVerifier || '';
+      if (!codeVerifierEl.value) {
+        codeVerifierEl.value = randomString(64);
+      }
+    }
+
+    function randomString(length = 64) {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+      const bytes = new Uint8Array(length);
+      crypto.getRandomValues(bytes);
+      let out = '';
+      for (let i = 0; i < bytes.length; i += 1) {
+        out += chars[bytes[i] % chars.length];
+      }
+      return out;
+    }
+
+    function buildVkAuthSnippet(tokenResult) {
+      const nowTs = Math.floor(Date.now() / 1000);
+      const expiresAt = nowTs + Number(tokenResult.expires_in || 0);
+      const payload = {
+        vk_auth: {
+          enabled: true,
+          client_id: appIdEl.value.trim(),
+          device_id: tokenResult.device_id || '',
+          refresh_token: tokenResult.refresh_token || '',
+          access_token: tokenResult.access_token || '',
+          access_token_expires_at: expiresAt,
+          authorization_code: '',
+          code_verifier: codeVerifierEl.value.trim(),
+          redirect_uri: redirectUrlEl.value.trim(),
+          token_endpoint: 'https://id.vk.ru/oauth2/auth'
+        }
+      };
+      return JSON.stringify(payload, null, 2);
+    }
+
+    function parseCallbackParams() {
+      const url = new URL(location.href);
+      const combined = new URLSearchParams(url.search);
+      if (url.hash.startsWith('#')) {
+        const hashParams = new URLSearchParams(url.hash.slice(1));
+        for (const [key, value] of hashParams.entries()) {
+          if (!combined.has(key)) {
+            combined.set(key, value);
+          }
+        }
+      }
+      return {
+        code: combined.get('code') || '',
+        deviceId: combined.get('device_id') || '',
+        error: combined.get('error') || '',
+        errorDescription: combined.get('error_description') || ''
+      };
+    }
+
+    function clearCallbackFromAddressBar() {
+      const cleanUrl = `${location.origin}${location.pathname}`;
+      history.replaceState({}, document.title, cleanUrl);
+    }
+
+    async function initSdk() {
+      const appId = appIdEl.value.trim();
+      const redirectUrl = redirectUrlEl.value.trim();
+      const scope = scopeEl.value.trim();
+      const codeVerifier = codeVerifierEl.value.trim();
+
+      if (!sdk) {
+        throw new Error('Не удалось загрузить VK ID SDK из CDN.');
+      }
+      if (!appId) {
+        throw new Error('Нужен APP_ID / client_id.');
+      }
+      if (!redirectUrl) {
+        throw new Error('Нужен redirect URL.');
+      }
+      if (!codeVerifier) {
+        throw new Error('Нужен code_verifier.');
+      }
+
+      sdk.Config.init({
+        app: Number(appId),
+        redirectUrl,
+        state: 'vk-autoposter-state',
+        codeVerifier,
+        scope
+      });
+
+      saveSettings();
+      return new sdk.Auth();
+    }
+
+    async function beginLogin() {
+      try {
+        const auth = await initSdk();
+        setStatus('Открываю окно авторизации VK ID…', 'info');
+        await auth.login();
+      } catch (err) {
+        setStatus(`Не удалось начать авторизацию:\n${err.message || err}`, 'bad');
+      }
+    }
+
+    async function handleCallbackIfPresent() {
+      const { code, deviceId, error, errorDescription } = parseCallbackParams();
+      if (error) {
+        setStatus(`VK ID вернул ошибку:\n${error}\n${errorDescription || ''}`.trim(), 'bad');
+        return;
+      }
+      if (!(code && deviceId)) {
+        return;
+      }
+
+      try {
+        setStatus('Получены code и device_id. Обмениваю их на токены…', 'info');
+        const auth = await initSdk();
+        const tokenResult = await auth.exchangeCode(code, deviceId, codeVerifierEl.value.trim());
+        tokenResult.device_id = deviceId;
+        resultJsonEl.value = buildVkAuthSnippet(tokenResult);
+        saveSettings({ lastTokenResult: tokenResult });
+        clearCallbackFromAddressBar();
+        setStatus('Готово. Скопируйте JSON и вставьте его в config.json.', 'ok');
+      } catch (err) {
+        setStatus(`Не удалось обменять code на токены:\n${err.message || err}`, 'bad');
+      }
+    }
+
+    async function copyResult() {
+      const text = resultJsonEl.value.trim();
+      if (!text) {
+        setStatus('Сначала получите токены, потом будет что копировать.', 'warn');
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        setStatus('JSON скопирован в буфер обмена.', 'ok');
+      } catch (err) {
+        setStatus(`Не удалось скопировать JSON:\n${err.message || err}`, 'bad');
+      }
+    }
+
+    function clearSaved() {
+      localStorage.removeItem(STORAGE_KEY);
+      resultJsonEl.value = '';
+      fillFromStorage();
+      setStatus('Локально сохранённые значения очищены.', 'info');
+    }
+
+    document.getElementById('generateBtn').addEventListener('click', () => {
+      codeVerifierEl.value = randomString(64);
+      saveSettings();
+      setStatus('Сгенерирован новый code_verifier.', 'info');
+    });
+
+    document.getElementById('loginBtn').addEventListener('click', beginLogin);
+    document.getElementById('copyBtn').addEventListener('click', copyResult);
+    document.getElementById('clearBtn').addEventListener('click', clearSaved);
+
+    fillFromStorage();
+    handleCallbackIfPresent();
+  </script>
+</body>
+</html>
